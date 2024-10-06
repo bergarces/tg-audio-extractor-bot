@@ -7,7 +7,7 @@ import TelegramBot from "node-telegram-bot-api";
 
 const execPromise = promisify(exec);
 
-const { botToken, allowList } = parseEnvironmentVariables();
+const { botToken, allowList, socks5Flag } = parseEnvironmentVariables();
 
 botStartWithPolling(botToken, allowList);
 
@@ -54,10 +54,10 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 
 		bot.sendMessage(message.chat.id, "Extracting audio. Please wait...");
 
-		const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+		const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 		try {
-			const title = await getVideoTitle(youtubeUrl);
-			const fileName = await downloadVideo(youtubeUrl, title);
+			const title = await getVideoTitle(videoUrl, socks5Flag);
+			const fileName = await downloadAudio(videoUrl, title, socks5Flag);
 			const mp3Stream = createReadStream(fileName);
 
 			bot.sendAudio(
@@ -70,7 +70,7 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 			console.log({
 				message: "Audio file sent",
 				user: message.chat.username,
-				youtubeUrl,
+				videoUrl,
 				fileName,
 				originalMessage: message.text,
 			});
@@ -96,6 +96,7 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 function parseEnvironmentVariables(): {
 	botToken: string;
 	allowList: string[];
+	socks5Flag: string;
 } {
 	const botToken = process.env.TELEGRAM_TOKEN;
 	if (!botToken) {
@@ -115,35 +116,48 @@ function parseEnvironmentVariables(): {
 		process.exit(1);
 	}
 
+	const socks5Flag =
+		process.env.SOCKS5_URL && process.env.SOCKS5_CREDENTIALS
+			? `--proxy socks5://${process.env.SOCKS5_CREDENTIALS}@${process.env.SOCKS5_URL}`
+			: "";
+
 	return {
 		botToken,
 		allowList: process.env.ALLOW_LIST.split(","),
+		socks5Flag,
 	};
 }
 
-async function getVideoTitle(videoUrl: string): Promise<string> {
-	const command = `yt-dlp -j ${videoUrl}`;
+async function getVideoTitle(
+	videoUrl: string,
+	socks5Flag: string,
+): Promise<string> {
+	const command = `yt-dlp ${videoUrl} -j ${socks5Flag}`;
 
 	const { stdout, stderr } = await execPromise(command);
 
 	if (stderr) {
-		throw new Error(stderr);
+		console.error({ error: "Error getting video title", videoUrl });
 	}
 
 	const info = JSON.parse(stdout);
 	return info.title;
 }
 
-async function downloadVideo(videoUrl: string, title: string): Promise<string> {
+async function downloadAudio(
+	videoUrl: string,
+	title: string,
+	socks5Flag: string,
+): Promise<string> {
 	const sanitizedTitle = filenamify(title);
 	const fileName = `${sanitizedTitle}.mp3`;
 
-	const command = `yt-dlp -x --audio-format mp3 --force-overwrites -o "${fileName}" ${videoUrl}`;
+	const command = `yt-dlp ${videoUrl} -x --audio-format mp3 --force-overwrites -o "${fileName}" ${socks5Flag}`;
 
 	const { stderr } = await execPromise(command);
 
 	if (stderr) {
-		throw new Error(stderr);
+		console.error({ error: "Error downloading audio", stderr, videoUrl });
 	}
 
 	return fileName;
