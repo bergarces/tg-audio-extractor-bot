@@ -89,6 +89,8 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 			console.error({ error: "Error downloading audio", originalError: error });
 		}
 	});
+
+	console.log({ message: "Bot started", allowList });
 }
 
 function parseEnvironmentVariables(): {
