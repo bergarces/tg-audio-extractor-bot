@@ -4,8 +4,11 @@ import { unlink } from "node:fs/promises";
 import { promisify } from "node:util";
 import filenamify from "filenamify";
 import TelegramBot from "node-telegram-bot-api";
+import pino from "pino";
 
 const execPromise = promisify(exec);
+
+const logger = pino();
 
 const { botToken, allowList, socks5Flag } = parseEnvironmentVariables();
 
@@ -24,10 +27,12 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 				message.chat.id,
 				`User ${message.chat.username} not allowed to use this bot.`,
 			);
-			console.error({
-				error: "Unauthorized user",
-				username: message.chat.username,
-			});
+			logger.error(
+				{
+					username: message.chat.username,
+				},
+				"Unauthorized user",
+			);
 			return;
 		}
 
@@ -43,10 +48,10 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 			);
 
 			if (match && !videoId) {
-				console.error({
-					error: "No video id found in valid regex",
-					message: message.text,
-				});
+				logger.error(
+					{ message: message.text },
+					"No video id found in valid regex",
+				);
 			}
 
 			return;
@@ -67,34 +72,40 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 				{ filename: fileName, contentType: "audio/mpeg" },
 			);
 
-			console.log({
-				message: "Audio file sent",
-				user: message.chat.username,
-				videoUrl,
-				fileName,
-				originalMessage: message.text,
-			});
+			logger.info(
+				{
+					user: message.chat.username,
+					videoUrl,
+					fileName,
+					originalMessage: message.text,
+				},
+				"Audio file sent",
+			);
 
 			try {
 				await unlink(fileName);
 			} catch (error) {
-				console.error({
-					error: "Error deleting file",
-					fileName,
-					originalError: error,
-				});
+				logger.error(
+					{
+						user: message.chat.username,
+						videoUrl,
+						fileName,
+						originalError: error,
+					},
+					"Error deleting file",
+				);
 			}
 		} catch (error) {
 			bot.sendMessage(message.chat.id, "Error downloading audio.");
-			console.error({ error: "Error downloading audio", originalError: error });
+			logger.error({ originalError: error }, "Error downloading audio");
 		}
 	});
 
 	bot.on("polling_error", (error) => {
-		console.error({ error: "Polling error", originalError: error });
+		logger.error({ originalError: error }, "Polling error");
 	});
 
-	console.log({ message: "Bot started", allowList });
+	logger.info({ allowList }, "Bot started");
 }
 
 function parseEnvironmentVariables(): {
@@ -104,7 +115,7 @@ function parseEnvironmentVariables(): {
 } {
 	const botToken = process.env.TELEGRAM_TOKEN;
 	if (!botToken) {
-		console.error({ error: "TELEGRAM_TOKEN is required" });
+		logger.error("TELEGRAM_TOKEN is required");
 		process.exit(1);
 	}
 
@@ -113,10 +124,9 @@ function parseEnvironmentVariables(): {
 		!process.env.ALLOW_LIST ||
 		!usernameListRegex.test(process.env.ALLOW_LIST)
 	) {
-		console.error({
-			error:
-				"ALLOW_LIST is required and must be a comma-separated list of Telegram usernames",
-		});
+		logger.error(
+			"ALLOW_LIST is required and must be a comma-separated list of Telegram usernames",
+		);
 		process.exit(1);
 	}
 
@@ -141,7 +151,7 @@ async function getVideoTitle(
 	const { stdout, stderr } = await execPromise(command);
 
 	if (stderr) {
-		console.error({ error: "Error getting video title", videoUrl });
+		logger.error({ videoUrl }, "Error getting video title");
 	}
 
 	const info = JSON.parse(stdout);
@@ -161,7 +171,7 @@ async function downloadAudio(
 	const { stderr } = await execPromise(command);
 
 	if (stderr) {
-		console.error({ error: "Error downloading audio", stderr, videoUrl });
+		logger.error({ stderr, videoUrl }, "Error downloading audio");
 	}
 
 	return fileName;
