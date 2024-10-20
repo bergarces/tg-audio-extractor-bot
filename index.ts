@@ -90,6 +90,10 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 		}
 	});
 
+	bot.on("polling_error", (error) => {
+		console.error({ error: "Polling error", originalError: error });
+	});
+
 	console.log({ message: "Bot started", allowList });
 }
 
