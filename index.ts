@@ -15,8 +15,15 @@ const { botToken, allowList, socks5Flag } = parseEnvironmentVariables();
 botStartWithPolling(botToken, allowList);
 
 function botStartWithPolling(botToken: string, allowList: string[]) {
-  const bot = new TelegramBot(botToken, { polling: true });
-  let isPolling = true;
+  const bot = new TelegramBot(botToken, {
+    polling: {
+      autoStart: true,
+      interval: 1000,
+      params: {
+        timeout: 10,
+      },
+    },
+  });
 
   bot.on("message", async (message, metadata) => {
     if (metadata.type !== "text") {
@@ -104,17 +111,6 @@ function botStartWithPolling(botToken: string, allowList: string[]) {
 
   bot.on("polling_error", (error) => {
     logger.error({ originalError: error }, "Polling error");
-
-    if (isPolling) {
-      isPolling = false;
-
-      bot.stopPolling();
-
-      setTimeout(() => {
-        bot.startPolling();
-        isPolling = true;
-      }, 10000);
-    }
   });
 
   logger.info({ allowList }, "Bot started");
