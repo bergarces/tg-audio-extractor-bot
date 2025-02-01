@@ -8,6 +8,21 @@ import { logger } from "./logger";
 
 const execPromise = promisify(exec);
 
+// TODO Rotate the socks5 URLs when there are errors
+const socks5Urls = [
+  "amsterdam.nl.socks.nordhold.net",
+  "atlanta.us.socks.nordhold.net",
+  "dallas.us.socks.nordhold.net",
+  "los-angeles.us.socks.nordhold.net",
+  "nl.socks.nordhold.net",
+  "se.socks.nordhold.net",
+  "stockholm.se.socks.nordhold.net",
+  "us.socks.nordhold.net",
+  "new-york.us.socks.nordhold.net",
+  "san-francisco.us.socks.nordhold.net",
+  "detroit.us.socks.nordhold.net",
+];
+
 export function botStartWithPolling(
   botToken: string,
   allowList: string[],
