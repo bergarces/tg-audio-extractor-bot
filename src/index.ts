@@ -21,7 +21,7 @@ setInterval(
       logger.error({ error }, "Error updating yt-dlp");
     }
   },
-  1000 * 60, //24 * 60 * 60 * 1000, // Update every 24 hours
+  24 * 60 * 60 * 1000, // Update every 24 hours
 );
 
 const { botToken, allowList, socks5Flag } = getConfig();
